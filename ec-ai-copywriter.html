@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EC AI コピーライター</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap');
+
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --border: rgba(255,255,255,0.07);
+  --border-hover: rgba(255,255,255,0.15);
+  --text: #e8e8f0;
+  --text-muted: #7070a0;
+  --text-dim: #404060;
+  --rakuten: #BF0000;
+  --amazon: #FF9900;
+  --yahoo: #FF0033;
+  --accent: #6B5CE7;
+  --accent-glow: rgba(107,92,231,0.3);
+  --green: #00D4A0;
+  --green-dim: rgba(0,212,160,0.1);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Noto Sans JP', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(107,92,231,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(107,92,231,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 48px;
+  gap: 20px;
+}
+.header-left {}
+.logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.header h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(24px, 4vw, 40px);
+  font-weight: 800;
+  line-height: 1.1;
+  color: #fff;
+}
+.header h1 span {
+  background: linear-gradient(135deg, #6B5CE7, #00D4A0);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.header-desc {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  max-width: 480px;
+}
+
+.stats-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.stat-chip {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  text-align: center;
+}
+.stat-num {
+  font-family: 'DM Mono', monospace;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--green);
+}
+.stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin-top: 2px;
+}
+
+/* API Key section */
+.api-section {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.api-icon {
+  width: 36px;
+  height: 36px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(107,92,231,0.3);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.api-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  letter-spacing: 0.05em;
+}
+.api-input-wrap {
+  flex: 1;
+  min-width: 200px;
+}
+.api-input {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: 'DM Mono', monospace;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.api-input:focus { border-color: var(--accent); }
+.api-input::placeholder { color: var(--text-dim); }
+.api-status {
+  font-size: 11px;
+  margin-top: 4px;
+}
+.api-status.ok { color: var(--green); }
+.api-status.err { color: #ff6b6b; }
+
+/* Tabs */
+.mode-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 24px;
+  width: fit-content;
+}
+.mode-tab {
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  transition: all 0.2s;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+.mode-tab.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Main layout */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+@media (max-width: 700px) { .main-grid { grid-template-columns: 1fr; } }
+
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.panel-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.panel-body { padding: 20px; }
+
+/* Form */
+.field { margin-bottom: 16px; }
+.field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.field-required::after {
+  content: '必須';
+  font-size: 9px;
+  color: var(--accent);
+  border: 1px solid rgba(107,92,231,0.4);
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: 6px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+input[type="text"], textarea, select {
+  width: 100%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  font-family: 'Noto Sans JP', sans-serif;
+}
+input[type="text"]:focus, textarea:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+input[type="text"]::placeholder, textarea::placeholder { color: var(--text-dim); }
+textarea { resize: vertical; min-height: 80px; }
+select { appearance: none; cursor: pointer; }
+select option { background: var(--bg3); }
+
+/* Platform toggles */
+.platform-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.platform-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+  background: var(--bg3);
+  color: var(--text-muted);
+  user-select: none;
+}
+.platform-toggle input { display: none; }
+.platform-toggle:has(input:checked).rakuten { border-color: var(--rakuten); color: var(--rakuten); background: rgba(191,0,0,0.08); }
+.platform-toggle:has(input:checked).amazon { border-color: var(--amazon); color: var(--amazon); background: rgba(255,153,0,0.08); }
+.platform-toggle:has(input:checked).yahoo { border-color: #cc0; color: #cc0; background: rgba(255,220,0,0.08); }
+.platform-toggle:has(input:checked).general { border-color: var(--green); color: var(--green); background: var(--green-dim); }
+.plt-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.plt-dot.r { background: var(--rakuten); }
+.plt-dot.a { background: var(--amazon); }
+.plt-dot.y { background: #cc0; }
+.plt-dot.g { background: var(--green); }
+
+/* Generate button */
+.gen-btn {
+  width: 100%;
+  padding: 14px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 8px;
+  position: relative;
+  overflow: hidden;
+  letter-spacing: 0.05em;
+}
+.gen-btn:hover { background: #5a4cd6; transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
+.gen-btn:active { transform: translateY(0); }
+.gen-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+.gen-btn .btn-inner { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.gen-btn.loading .spinner { display: block; }
+.gen-btn.loading .btn-text { opacity: 0.7; }
+
+/* CSV mode */
+.csv-area {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  min-height: 160px;
+}
+.csv-hint {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-dim);
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  line-height: 1.7;
+}
+
+/* Results */
+.results-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+.results-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.results-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.export-btn {
+  background: var(--green-dim);
+  border: 1px solid rgba(0,212,160,0.3);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: var(--green);
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.2s;
+}
+.export-btn:hover { background: rgba(0,212,160,0.2); }
+
+.result-items { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+.result-card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  animation: fadeUp 0.4s ease both;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.result-card-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.platform-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+.badge-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+.result-card.rakuten .result-card-header { background: rgba(191,0,0,0.06); border-bottom: 1px solid rgba(191,0,0,0.15); }
+.result-card.rakuten .platform-badge { color: #ff4444; }
+.result-card.rakuten .badge-dot { background: var(--rakuten); }
+.result-card.amazon .result-card-header { background: rgba(255,153,0,0.06); border-bottom: 1px solid rgba(255,153,0,0.15); }
+.result-card.amazon .platform-badge { color: var(--amazon); }
+.result-card.amazon .badge-dot { background: var(--amazon); }
+.result-card.yahoo .result-card-header { background: rgba(220,180,0,0.06); border-bottom: 1px solid rgba(220,180,0,0.15); }
+.result-card.yahoo .platform-badge { color: #ddb800; }
+.result-card.yahoo .badge-dot { background: #cc0; }
+.result-card.general .result-card-header { background: rgba(0,212,160,0.06); border-bottom: 1px solid rgba(0,212,160,0.15); }
+.result-card.general .platform-badge { color: var(--green); }
+.result-card.general .badge-dot { background: var(--green); }
+
+.copy-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.2s;
+}
+.copy-btn:hover { border-color: var(--border-hover); color: var(--text); }
+.copy-btn.copied { border-color: var(--green); color: var(--green); }
+
+.result-text {
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--text);
+  white-space: pre-wrap;
+}
+.result-meta {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.02);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* Batch results */
+.batch-table-wrap { overflow-x: auto; }
+.batch-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.batch-table th {
+  padding: 10px 14px;
+  text-align: left;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.batch-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text);
+  max-width: 280px;
+}
+.batch-table tr:hover td { background: rgba(255,255,255,0.02); }
+.batch-table td:first-child {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-family: 'DM Mono', monospace;
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-dim);
+}
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+.empty-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+}
+.empty-sub { font-size: 13px; }
+
+/* Progress bar for batch */
+.progress-wrap {
+  background: var(--bg3);
+  border-radius: 4px;
+  height: 4px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent), var(--green));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+.progress-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* Apps Script section */
+.script-section {
+  margin-top: 24px;
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.script-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.script-header:hover { background: rgba(255,255,255,0.02); }
+.script-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.script-badge {
+  font-size: 10px;
+  background: rgba(107,92,231,0.15);
+  color: var(--accent);
+  border: 1px solid rgba(107,92,231,0.3);
+  border-radius: 20px;
+  padding: 2px 8px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.chevron { transition: transform 0.3s; color: var(--text-muted); }
+.chevron.open { transform: rotate(180deg); }
+.script-body { display: none; padding: 20px; }
+.script-body.open { display: block; }
+.code-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 20px;
+  overflow-x: auto;
+}
+.code-block pre {
+  font-family: 'DM Mono', monospace;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #a8a8d8;
+  white-space: pre;
+}
+.code-comment { color: #505080; }
+.code-keyword { color: #6B5CE7; }
+.code-string { color: #00D4A0; }
+.code-func { color: #FFB347; }
+.copy-code-btn {
+  margin-top: 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: 'Noto Sans JP', sans-serif;
+  transition: all 0.2s;
+  width: 100%;
+}
+.copy-code-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Instructions */
+.steps-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.step-box {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+}
+.step-num2 {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.step-ttl {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+.step-desc {
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--bg3);
+  border: 1px solid var(--green);
+  border-radius: 10px;
+  padding: 12px 20px;
+  font-size: 13px;
+  color: var(--green);
+  z-index: 100;
+  transform: translateY(80px);
+  opacity: 0;
+  transition: all 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none;
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">EC × AI Tool</div>
+      <h1>商品文案<span>一括生成</span>システム</h1>
+      <div class="header-desc">楽天・Amazon・Yahoo対応。商品情報を入れるだけで、各プラットフォーム向けの最適な日本語コピーを自動生成します。</div>
+    </div>
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div class="stat-num" id="stat-count">0</div>
+        <div class="stat-label">生成済み</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num" id="stat-time">—</div>
+        <div class="stat-label">平均秒数</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Key -->
+  <div class="api-section">
+    <div class="api-icon">🔑</div>
+    <div class="api-input-wrap">
+      <div class="api-label">OpenAI API Key</div>
+      <input type="password" class="api-input" id="apiKey" placeholder="sk-proj-..." oninput="checkApiKey()">
+      <div class="api-status" id="apiStatus"></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-muted);line-height:1.6;max-width:220px;">
+      APIキーは<a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--accent)">platform.openai.com</a>で取得できます。ローカルのみで使用、保存されません。
+    </div>
+  </div>
+
+  <!-- Mode tabs -->
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="switchMode('single')">単品モード</button>
+    <button class="mode-tab" onclick="switchMode('batch')">一括CSVモード</button>
+  </div>
+
+  <!-- Single mode -->
+  <div id="singleMode">
+    <div class="main-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">商品情報入力</span>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label class="field-required">商品名（日本語または中国語）</label>
+            <input type="text" id="s_name" placeholder="例：シルク混紡 スカーフ / 丝绸围巾">
+          </div>
+          <div class="field">
+            <label>素材・仕様</label>
+            <input type="text" id="s_spec" placeholder="例：シルク70% ポリエステル30%、180×90cm">
+          </div>
+          <div class="field">
+            <label>カラー・バリエーション</label>
+            <input type="text" id="s_color" placeholder="例：ブラック、ネイビー、ベージュ（全10色）">
+          </div>
+          <div class="field">
+            <label>価格帯</label>
+            <input type="text" id="s_price" placeholder="例：¥2,980">
+          </div>
+          <div class="field">
+            <label>ターゲットキーワード（SEO用）</label>
+            <input type="text" id="s_keywords" placeholder="例：スカーフ レディース おしゃれ プレゼント">
+          </div>
+          <div class="field">
+            <label>商品カテゴリ</label>
+            <select id="s_category">
+              <option value="fashion">ファッション・雑貨</option>
+              <option value="beauty">美容・スキンケア</option>
+              <option value="home">家庭・生活用品</option>
+              <option value="electronics">家電・電子機器</option>
+              <option value="food">食品・飲料</option>
+              <option value="sports">スポーツ・アウトドア</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>生成プラットフォーム</label>
+            <div class="platform-row">
+              <label class="platform-toggle rakuten">
+                <input type="checkbox" value="rakuten" checked>
+                <span class="plt-dot r"></span>楽天市場
+              </label>
+              <label class="platform-toggle amazon">
+                <input type="checkbox" value="amazon" checked>
+                <span class="plt-dot a"></span>Amazon JP
+              </label>
+              <label class="platform-toggle general">
+                <input type="checkbox" value="general" checked>
+                <span class="plt-dot g"></span>自社EC
+              </label>
+            </div>
+          </div>
+          <button class="gen-btn" id="singleGenBtn" onclick="generateSingle()">
+            <span class="btn-inner">
+              <span class="spinner"></span>
+              <span class="btn-text">✦ 文案を一括生成する</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tips panel -->
+      <div class="panel">
+        <div class="panel-header">
+          <span class="panel-title">プラットフォーム攻略メモ</span>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;flex-direction:column;gap:12px;">
+            <div style="border:1px solid rgba(191,0,0,0.2);border-radius:10px;padding:14px;background:rgba(191,0,0,0.04);">
+              <div style="color:#ff4444;font-weight:700;font-size:12px;margin-bottom:6px;">🏪 楽天市場</div>
+              <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">感情・体験訴求型。「〜で毎日が変わる」「大切な人へのギフトに」。ストーリー型で共感を誘う。キーワードは自然に埋め込む。文字数目安：<strong style="color:var(--text)">600〜900字</strong></div>
+            </div>
+            <div style="border:1px solid rgba(255,153,0,0.2);border-radius:10px;padding:14px;background:rgba(255,153,0,0.04);">
+              <div style="color:var(--amazon);font-weight:700;font-size:12px;margin-bottom:6px;">📦 Amazon JP</div>
+              <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">仕様・機能説明型。【特徴1〜5】箇条書き形式。数値・スペック重視。タイトル案も含む。<strong style="color:var(--text)">タイトル80字以内 + 箇条書き5点</strong></div>
+            </div>
+            <div style="border:1px solid rgba(0,212,160,0.2);border-radius:10px;padding:14px;background:rgba(0,212,160,0.04);">
+              <div style="color:var(--green);font-weight:700;font-size:12px;margin-bottom:6px;">🌐 自社EC</div>
+              <div style="font-size:12px;color:var(--text-muted);line-height:1.7;">ブランド価値 × 機能説明のバランス型。こだわりと品質を上品に訴求。中国語での仕入れ背景（1688等）を活かした品質アピールも可能。文字数：<strong style="color:var(--text)">500〜700字</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Batch mode -->
+  <div id="batchMode" style="display:none;">
+    <div class="panel">
+      <div class="panel-header">
+        <span class="panel-title">CSVデータ一括入力</span>
+        <button class="copy-btn" onclick="loadSampleCSV()">サンプルデータを読込</button>
+      </div>
+      <div class="panel-body">
+        <div class="csv-hint">
+フォーマット（1行目はヘッダー）：<br>
+商品名,素材・仕様,カラー,価格,キーワード,カテゴリ<br>
+シルクスカーフ,シルク100%,ブラック/ホワイト,¥3980,スカーフ レディース,fashion<br>
+フェイスパック,ヒアルロン酸配合,—,¥1980,パック 保湿 毛穴,beauty
+        </div>
+        <textarea class="csv-area" id="csvData" rows="8" placeholder="ここにCSVデータを貼り付けるか、「サンプルデータを読込」ボタンをクリック..."></textarea>
+        <div style="margin-top:12px;">
+          <label style="font-size:11px;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:8px;">生成プラットフォーム（一括）</label>
+          <div class="platform-row">
+            <label class="platform-toggle rakuten"><input type="checkbox" value="rakuten" checked class="batch-plt"><span class="plt-dot r"></span>楽天市場</label>
+            <label class="platform-toggle amazon"><input type="checkbox" value="amazon" checked class="batch-plt"><span class="plt-dot a"></span>Amazon JP</label>
+            <label class="platform-toggle general"><input type="checkbox" value="general" checked class="batch-plt"><span class="plt-dot g"></span>自社EC</label>
+          </div>
+        </div>
+        <button class="gen-btn" id="batchGenBtn" onclick="generateBatch()" style="margin-top:16px;">
+          <span class="btn-inner">
+            <span class="spinner"></span>
+            <span class="btn-text">✦ 全商品を一括生成する</span>
+          </span>
+        </button>
+        <div class="progress-wrap" id="progressWrap" style="display:none;">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="progress-label" id="progressLabel"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-panel" id="resultsPanel">
+    <div class="results-header">
+      <div class="results-title">生成結果</div>
+      <button class="export-btn" id="exportBtn" onclick="exportCSV()" style="display:none;">⬇ CSVエクスポート</button>
+    </div>
+    <div id="resultsBody">
+      <div class="empty-state">
+        <div class="empty-icon">✦</div>
+        <div class="empty-title">商品情報を入力して生成してください</div>
+        <div class="empty-sub">楽天・Amazon・Yahoo向けの最適な文案が自動生成されます</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Google Apps Script section -->
+  <div class="script-section">
+    <div class="script-header" onclick="toggleScript()">
+      <div class="script-title">
+        📊 Google Sheets連携コード
+        <span class="script-badge">面接用 Apps Script</span>
+      </div>
+      <span class="chevron" id="scriptChevron">▼</span>
+    </div>
+    <div class="script-body" id="scriptBody">
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;line-height:1.7;">
+        以下のコードをGoogle Sheetsのスクリプトエディタ（拡張機能 → Apps Script）に貼り付けると、スプレッドシートでも同じ機能が使えます。<br>
+        <strong style="color:var(--text)">A列:商品名 B列:仕様 C列:キーワード → D列:楽天文案 E列:Amazon文案 が自動生成されます。</strong>
+      </p>
+      <div class="steps-grid">
+        <div class="step-box">
+          <div class="step-num2">STEP 01</div>
+          <div class="step-ttl">スプレッドシート作成</div>
+          <div class="step-desc">Google Sheetsで新規シートを作成。1行目にヘッダーを設定。</div>
+        </div>
+        <div class="step-box">
+          <div class="step-num2">STEP 02</div>
+          <div class="step-ttl">スクリプト貼り付け</div>
+          <div class="step-desc">拡張機能→Apps Script→コードを貼り付けてAPIキーを設定。</div>
+        </div>
+        <div class="step-box">
+          <div class="step-num2">STEP 03</div>
+          <div class="step-ttl">実行・承認</div>
+          <div class="step-desc">初回実行時にGoogleの承認画面が出るので許可する。</div>
+        </div>
+        <div class="step-box">
+          <div class="step-num2">STEP 04</div>
+          <div class="step-ttl">一括生成</div>
+          <div class="step-desc">メニューに「AI文案生成」が追加され、ワンクリックで実行可能。</div>
+        </div>
+      </div>
+      <div class="code-block" style="margin-top:16px;">
+        <pre id="scriptCode">// ================================
+// EC AI コピーライター - Google Apps Script
+// 使い方: スプレッドシートのメニュー →「AI文案生成」
+// ================================
+
+<span class="code-keyword">const</span> API_KEY = <span class="code-string">'sk-proj-ここにOpenAIのAPIキーを入れる'</span>;
+<span class="code-keyword">const</span> MODEL = <span class="code-string">'gpt-4o'</span>;
+
+<span class="code-comment">// メニューをスプレッドシートに追加する</span>
+<span class="code-keyword">function</span> <span class="code-func">onOpen</span>() {
+  SpreadsheetApp.getUi()
+    .createMenu(<span class="code-string">'🤖 AI文案生成'</span>)
+    .addItem(<span class="code-string">'選択行を生成'</span>, <span class="code-string">'generateSelected'</span>)
+    .addItem(<span class="code-string">'全行を一括生成'</span>, <span class="code-string">'generateAll'</span>)
+    .addToUi();
+}
+
+<span class="code-comment">// 全行を一括生成（メインの関数）</span>
+<span class="code-keyword">function</span> <span class="code-func">generateAll</span>() {
+  <span class="code-keyword">const</span> sheet = SpreadsheetApp.getActiveSheet();
+  <span class="code-keyword">const</span> lastRow = sheet.getLastRow();
+  
+  <span class="code-comment">// ヘッダー行をスキップして2行目から処理</span>
+  <span class="code-keyword">for</span> (<span class="code-keyword">let</span> i = 2; i <= lastRow; i++) {
+    <span class="code-keyword">const</span> name     = sheet.getRange(i, 1).getValue(); <span class="code-comment">// A列: 商品名</span>
+    <span class="code-keyword">const</span> spec     = sheet.getRange(i, 2).getValue(); <span class="code-comment">// B列: 仕様</span>
+    <span class="code-keyword">const</span> keywords = sheet.getRange(i, 3).getValue(); <span class="code-comment">// C列: キーワード</span>
+    
+    <span class="code-keyword">if</span> (!name) <span class="code-keyword">continue</span>; <span class="code-comment">// 空行スキップ</span>
+    
+    <span class="code-comment">// D列: 楽天文案を生成</span>
+    sheet.getRange(i, 4).setValue(
+      <span class="code-func">callOpenAI</span>(buildPrompt(name, spec, keywords, <span class="code-string">'rakuten'</span>))
+    );
+    
+    <span class="code-comment">// E列: Amazon文案を生成</span>
+    sheet.getRange(i, 5).setValue(
+      <span class="code-func">callOpenAI</span>(buildPrompt(name, spec, keywords, <span class="code-string">'amazon'</span>))
+    );
+
+    <span class="code-comment">// F列: 自社EC文案を生成</span>
+    sheet.getRange(i, 6).setValue(
+      <span class="code-func">callOpenAI</span>(buildPrompt(name, spec, keywords, <span class="code-string">'general'</span>))
+    );
+    
+    <span class="code-comment">// レート制限回避のため少し待機</span>
+    Utilities.sleep(1000);
+  }
+  
+  SpreadsheetApp.getUi().alert(<span class="code-string">'✅ 生成完了！全行の文案が生成されました。'</span>);
+}
+
+<span class="code-comment">// プラットフォーム別プロンプトを組み立てる</span>
+<span class="code-keyword">function</span> <span class="code-func">buildPrompt</span>(name, spec, keywords, platform) {
+  <span class="code-keyword">const</span> styles = {
+    rakuten: <span class="code-string">`楽天市場向け。感情・体験訴求型で600〜900字の自然な文章。
+「〜で毎日が変わる」「大切な人へのギフトに」などの感情的表現を使い、
+使用シーンを具体的に描写。キーワードを3〜5回自然に含める。`</span>,
+    amazon: <span class="code-string">`Amazon JP向け。以下の形式で厳密に出力すること：
+【商品タイトル】（80文字以内）
+【特徴1】〜【特徴5】（各60字以内の箇条書き）
+【商品説明】（200字）
+数値・スペック重視、客観的・情報的なトーン。`</span>,
+    general: <span class="code-string">`自社ECサイト向け。ブランド価値×機能説明のバランス型で500〜700字。
+素材・こだわりを上品に訴求し、使用シーンと購買を後押しするクロージングを含める。`</span>
+  };
+  
+  <span class="code-keyword">return</span> <span class="code-string">`以下の商品の商品説明文を日本語で作成してください。
+
+商品名: ${name}
+仕様・素材: ${spec}
+SEOキーワード: ${keywords}
+
+${styles[platform]}
+
+商品説明文のみを出力してください。余計な説明は不要です。`</span>;
+}
+
+<span class="code-comment">// OpenAI APIを呼び出す</span>
+<span class="code-keyword">function</span> <span class="code-func">callOpenAI</span>(prompt) {
+  <span class="code-keyword">const</span> response = UrlFetchApp.fetch(<span class="code-string">'https://api.openai.com/v1/chat/completions'</span>, {
+    method: <span class="code-string">'post'</span>,
+    headers: {
+      <span class="code-string">'Authorization'</span>: <span class="code-string">`Bearer ${API_KEY}`</span>,
+      <span class="code-string">'Content-Type'</span>: <span class="code-string">'application/json'</span>
+    },
+    payload: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1200,
+      temperature: 0.7,
+      messages: [
+        {
+          role: <span class="code-string">'system'</span>,
+          content: <span class="code-string">'あなたは日本のEC専門プロコピーライターです。各プラットフォームの特性を熟知し、SEOと購買率を両立した高品質な商品説明文を作成します。'</span>
+        },
+        { role: <span class="code-string">'user'</span>, content: prompt }
+      ]
+    }),
+    muteHttpExceptions: <span class="code-keyword">true</span>
+  });
+  
+  <span class="code-keyword">const</span> data = JSON.parse(response.getContentText());
+  <span class="code-keyword">return</span> data.choices?.[0]?.message?.content || <span class="code-string">'エラー: 生成に失敗しました'</span>;
+}</pre>
+
+<span class="code-comment">// メニューをスプレッドシートに追加する</span>
+<span class="code-keyword">function</span> <span class="code-func">onOpen</span>() {
+  SpreadsheetApp.getUi()
+    .createMenu(<span class="code-string">'🤖 AI文案生成'</span>)
+    .addItem(<span class="code-string">'選択行を生成'</span>, <span class="code-string">'generateSelected'</span>)
+    .addItem(<span class="code-string">'全行を一括生成'</span>, <span class="code-string">'generateAll'</span>)
+    .addToUi();
+}
+
+<span class="code-comment">// 全行を一括生成（メインの関数）</span>
+<span class="code-keyword">function</span> <span class="code-func">generateAll</span>() {
+  <span class="code-keyword">const</span> sheet = SpreadsheetApp.getActiveSheet();
+  <span class="code-keyword">const</span> lastRow = sheet.getLastRow();
+  
+  <span class="code-comment">// ヘッダー行をスキップして2行目から処理</span>
+  <span class="code-keyword">for</span> (<span class="code-keyword">let</span> i = 2; i <= lastRow; i++) {
+    <span class="code-keyword">const</span> name     = sheet.getRange(i, 1).getValue(); <span class="code-comment">// A列: 商品名</span>
+    <span class="code-keyword">const</span> spec     = sheet.getRange(i, 2).getValue(); <span class="code-comment">// B列: 仕様</span>
+    <span class="code-keyword">const</span> keywords = sheet.getRange(i, 3).getValue(); <span class="code-comment">// C列: キーワード</span>
+    
+    <span class="code-keyword">if</span> (!name) <span class="code-keyword">continue</span>; <span class="code-comment">// 空行スキップ</span>
+    
+    <span class="code-comment">// D列: 楽天文案を生成</span>
+    sheet.getRange(i, 4).setValue(
+      <span class="code-func">callClaude</span>(buildPrompt(name, spec, keywords, <span class="code-string">'rakuten'</span>))
+    );
+    
+    <span class="code-comment">// E列: Amazon文案を生成</span>
+    sheet.getRange(i, 5).setValue(
+      <span class="code-func">callClaude</span>(buildPrompt(name, spec, keywords, <span class="code-string">'amazon'</span>))
+    );
+    
+    <span class="code-comment">// レート制限回避のため少し待機</span>
+    Utilities.sleep(1000);
+  }
+  
+  SpreadsheetApp.getUi().alert(<span class="code-string">'✅ 生成完了！全行の文案が生成されました。'</span>);
+}
+
+<span class="code-comment">// プラットフォーム別プロンプトを組み立てる</span>
+<span class="code-keyword">function</span> <span class="code-func">buildPrompt</span>(name, spec, keywords, platform) {
+  <span class="code-keyword">const</span> styles = {
+    rakuten: <span class="code-string">`楽天市場向け。感情・体験訴求型で500〜800字。
+HTMLタグなし。読者の共感を呼ぶストーリー型。
+「〜で毎日が変わる」「大切な人へのギフトに」などの
+感情的表現を使い、キーワードを自然に含める。`</span>,
+    amazon: <span class="code-string">`Amazon JP向け。仕様説明型。
+【特徴1】〜【特徴5】の箇条書き形式。
+数値・スペック・機能を明確に。300字程度。
+タイトル案も1行で含めること（80文字以内）。`</span>
+  };
+  
+  <span class="code-keyword">return</span> <span class="code-string">`以下の商品の商品説明文を日本語で作成してください。
+
+商品名: ${name}
+仕様・素材: ${spec}
+SEOキーワード: ${keywords}
+
+${styles[platform]}
+
+商品説明文のみを出力してください。余計な説明は不要です。`</span>;
+}
+
+<span class="code-comment">// Claude APIを呼び出す</span>
+<span class="code-keyword">function</span> <span class="code-func">callClaude</span>(prompt) {
+  <span class="code-keyword">const</span> response = UrlFetchApp.fetch(<span class="code-string">'https://api.anthropic.com/v1/messages'</span>, {
+    method: <span class="code-string">'post'</span>,
+    headers: {
+      <span class="code-string">'x-api-key'</span>: API_KEY,
+      <span class="code-string">'anthropic-version'</span>: <span class="code-string">'2023-06-01'</span>,
+      <span class="code-string">'Content-Type'</span>: <span class="code-string">'application/json'</span>
+    },
+    payload: JSON.stringify({
+      model: MODEL,
+      max_tokens: 1024,
+      messages: [{ role: <span class="code-string">'user'</span>, content: prompt }]
+    }),
+    muteHttpExceptions: <span class="code-keyword">true</span>
+  });
+  
+  <span class="code-keyword">const</span> data = JSON.parse(response.getContentText());
+  <span class="code-keyword">return</span> data.content?.[0]?.text || <span class="code-string">'エラー: 生成に失敗しました'</span>;
+}</pre>
+      </div>
+      <button class="copy-code-btn" onclick="copyScript()">📋 このコードをコピーする</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+let totalGenerated = 0;
+let totalTime = 0;
+let allResults = [];
+let currentMode = 'single';
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.getElementById('singleMode').style.display = mode === 'single' ? 'block' : 'none';
+  document.getElementById('batchMode').style.display = mode === 'batch' ? 'block' : 'none';
+  document.querySelectorAll('.mode-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='single')||(i===1&&mode==='batch')));
+  clearResults();
+}
+
+function checkApiKey() {
+  const key = document.getElementById('apiKey').value.trim();
+  const status = document.getElementById('apiStatus');
+  if (!key) { status.textContent = ''; return; }
+  if (key.startsWith('sk-')) {
+    status.textContent = '✓ OpenAI APIキー 確認済み';
+    status.className = 'api-status ok';
+  } else {
+    status.textContent = '⚠ キーは sk- で始まる必要があります';
+    status.className = 'api-status err';
+  }
+}
+
+function getApiKey() {
+  return document.getElementById('apiKey').value.trim();
+}
+
+function getSelectedPlatforms(selector) {
+  const checkboxes = document.querySelectorAll(selector || '#singleMode .platform-toggle input:checked');
+  return Array.from(checkboxes).map(c => c.value);
+}
+
+function buildPrompt(name, spec, color, price, keywords, category, platform) {
+  const platformGuides = {
+    rakuten: `楽天市場向けの商品説明文を日本語で作成してください。
+スタイル：感情・体験訴求型（お客様の気持ち・日常シーンに訴える）
+文字数：600〜900字
+形式：自然な流れる文章（HTMLタグなし、箇条書きなし）
+必須要素：
+  - ターゲットキーワードを自然な形で3〜5回含める
+  - 具体的な使用シーン（朝のルーティン、ギフトシーンなど）を描写
+  - 「〜で毎日が変わる」「大切な人へのギフトに」などの感情的表現
+  - 購入後のポジティブな変化を描く
+トーン：親しみやすく、温かみがある、少し情緒的に`,
+
+    amazon: `Amazon JP向けの商品ページを日本語で作成してください。
+形式：以下の構成で厳密に出力すること
+
+【商品タイトル】
+（80文字以内。カテゴリ + 商品名 + 主要スペック + ブランドの順）
+
+【特徴1】〜【特徴5】
+（各60字以内の箇条書き。機能・素材・サイズ・安全性・付属品の順）
+
+【商品説明】
+（200字。仕様と用途を客観的に説明）
+
+スタイル：ファクトベース・数値重視
+トーン：客観的・情報的・信頼感がある`,
+
+    general: `自社ECサイト向けの商品説明文を日本語で作成してください。
+スタイル：ブランド価値 × 機能説明のバランス型
+文字数：500〜700字
+形式：導入（ブランドストーリー・こだわり）→ 機能説明 → 使用シーン → クロージングの流れ
+必須要素：
+  - 素材・製造背景へのこだわりを上品に訴求
+  - 機能的ベネフィットを分かりやすく説明
+  - ターゲットキーワードを自然に含める
+  - 購買を後押しするクロージング文
+トーン：洗練されていて信頼感があり、ブランド感がある`
+  };
+
+  return `以下の商品情報をもとに商品説明文を作成してください。
+
+${platformGuides[platform]}
+
+---
+商品名：${name}
+素材・仕様：${spec || '未記載'}
+カラー・バリエーション：${color || '未記載'}
+価格：${price || '未記載'}
+SEOキーワード（必ず含める）：${keywords || '未記載'}
+カテゴリ：${category || '未記載'}
+---
+
+商品説明文のみを出力してください。「以下は〜」などの前置きや補足説明は不要です。`;
+}
+
+async function callAPI(prompt) {
+  const key = getApiKey();
+  if (!key) throw new Error('APIキーを入力してください');
+
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${key}`
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o',
+      max_tokens: 1200,
+      temperature: 0.7,
+      messages: [
+        {
+          role: 'system',
+          content: 'あなたは日本のECサイト専門のプロコピーライターです。各プラットフォームの特性を熟知しており、SEOと購買率を両立した高品質な商品説明文を作成します。指定されたフォーマットと文字数を厳守してください。'
+        },
+        { role: 'user', content: prompt }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error?.message || `APIエラー: ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+
+async function generateSingle() {
+  const name = document.getElementById('s_name').value.trim();
+  if (!name) { showToast('商品名を入力してください', true); return; }
+  if (!getApiKey()) { showToast('APIキーを入力してください', true); return; }
+
+  const platforms = getSelectedPlatforms('#singleMode .platform-toggle input:checked');
+  if (!platforms.length) { showToast('プラットフォームを選択してください', true); return; }
+
+  const spec = document.getElementById('s_spec').value.trim();
+  const color = document.getElementById('s_color').value.trim();
+  const price = document.getElementById('s_price').value.trim();
+  const keywords = document.getElementById('s_keywords').value.trim();
+  const category = document.getElementById('s_category').value;
+
+  const btn = document.getElementById('singleGenBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.querySelector('.btn-text').textContent = '生成中...';
+
+  clearResults();
+  document.getElementById('resultsBody').innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--text-muted);font-size:13px;">⏳ AIが文案を作成しています...</div>';
+
+  const startTime = Date.now();
+  const results = [];
+
+  try {
+    for (const platform of platforms) {
+      const prompt = buildPrompt(name, spec, color, price, keywords, category, platform);
+      const text = await callAPI(prompt);
+      results.push({ platform, text, name });
+    }
+
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    totalGenerated += platforms.length;
+    totalTime = parseFloat(elapsed);
+    document.getElementById('stat-count').textContent = totalGenerated;
+    document.getElementById('stat-time').textContent = elapsed + 's';
+
+    allResults = results;
+    renderSingleResults(results);
+    document.getElementById('exportBtn').style.display = 'block';
+    showToast(`✓ ${platforms.length}プラットフォーム分の文案を生成しました（${elapsed}秒）`);
+  } catch (e) {
+    document.getElementById('resultsBody').innerHTML = `<div style="padding:30px 20px;text-align:center;color:#ff6b6b;font-size:13px;">❌ エラー: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.querySelector('.btn-text').textContent = '✦ 文案を一括生成する';
+  }
+}
+
+function renderSingleResults(results) {
+  const platformNames = { rakuten:'楽天市場', amazon:'Amazon JP', general:'自社EC' };
+  const html = `<div class="result-items">${results.map((r, i) => `
+    <div class="result-card ${r.platform}" style="animation-delay:${i*0.1}s">
+      <div class="result-card-header">
+        <div class="platform-badge">
+          <span class="badge-dot"></span>
+          ${platformNames[r.platform]}
+        </div>
+        <button class="copy-btn" onclick="copyText(this, ${i})">コピー</button>
+      </div>
+      <div class="result-text" id="rt_${i}">${escapeHtml(r.text)}</div>
+      <div class="result-meta">
+        <span>文字数: ${r.text.length}字</span>
+        <span>商品: ${escapeHtml(r.name)}</span>
+      </div>
+    </div>
+  `).join('')}</div>`;
+  document.getElementById('resultsBody').innerHTML = html;
+}
+
+function loadSampleCSV() {
+  document.getElementById('csvData').value = `商品名,素材・仕様,カラー,価格,キーワード,カテゴリ
+シルクスカーフ,シルク100% 180×90cm,ブラック/ホワイト/ネイビー,¥3980,スカーフ レディース おしゃれ ギフト プレゼント,fashion
+フェイスパック 30枚入,ヒアルロン酸・コラーゲン配合,—,¥1980,フェイスパック 保湿 毛穴 韓国コスメ,beauty
+竹製まな板 大,天然竹 45×30×2cm 抗菌加工,ナチュラルブラウン,¥2480,まな板 竹 抗菌 おしゃれ キッチン,home`;
+}
+
+async function generateBatch() {
+  const csv = document.getElementById('csvData').value.trim();
+  if (!csv) { showToast('CSVデータを入力してください', true); return; }
+  if (!getApiKey()) { showToast('APIキーを入力してください', true); return; }
+
+  const lines = csv.split('\n').filter(l => l.trim());
+  if (lines.length < 2) { showToast('2行以上のデータが必要です（1行目はヘッダー）', true); return; }
+
+  const platforms = Array.from(document.querySelectorAll('.batch-plt:checked')).map(c => c.value);
+  if (!platforms.length) { showToast('プラットフォームを選択してください', true); return; }
+
+  const dataRows = lines.slice(1).map(l => {
+    const parts = l.split(',');
+    return { name: parts[0]||'', spec: parts[1]||'', color: parts[2]||'', price: parts[3]||'', keywords: parts[4]||'', category: parts[5]||'fashion' };
+  });
+
+  const btn = document.getElementById('batchGenBtn');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  btn.querySelector('.btn-text').textContent = '一括生成中...';
+
+  document.getElementById('progressWrap').style.display = 'block';
+  document.getElementById('progressBar').style.width = '0%';
+  document.getElementById('resultsBody').innerHTML = '<div style="padding:30px 20px;text-align:center;color:var(--text-muted);font-size:13px;">⏳ 全商品の文案を生成中...</div>';
+
+  const total = dataRows.length * platforms.length;
+  let done = 0;
+  allResults = [];
+
+  try {
+    for (const row of dataRows) {
+      const rowResults = { name: row.name, platforms: {} };
+      for (const platform of platforms) {
+        const prompt = buildPrompt(row.name, row.spec, row.color, row.price, row.keywords, row.category, platform);
+        rowResults.platforms[platform] = await callAPI(prompt);
+        done++;
+        const pct = Math.round((done/total)*100);
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('progressLabel').textContent = `${done} / ${total} 完了 (${pct}%)`;
+      }
+      allResults.push(rowResults);
+    }
+
+    totalGenerated += total;
+    document.getElementById('stat-count').textContent = totalGenerated;
+    renderBatchResults(allResults, platforms);
+    document.getElementById('exportBtn').style.display = 'block';
+    showToast(`✓ ${dataRows.length}商品 × ${platforms.length}プラットフォーム の文案を生成しました`);
+  } catch (e) {
+    document.getElementById('resultsBody').innerHTML = `<div style="padding:30px 20px;text-align:center;color:#ff6b6b;font-size:13px;">❌ エラー: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    btn.querySelector('.btn-text').textContent = '✦ 全商品を一括生成する';
+    document.getElementById('progressWrap').style.display = 'none';
+    document.getElementById('progressLabel').textContent = '';
+  }
+}
+
+function renderBatchResults(results, platforms) {
+  const platformNames = { rakuten:'楽天市場', amazon:'Amazon JP', general:'自社EC' };
+  const headers = ['商品名', ...platforms.map(p => platformNames[p] || p)];
+  const rows = results.map(r => [
+    r.name,
+    ...platforms.map(p => r.platforms[p] || '')
+  ]);
+
+  const tableHtml = `
+    <div class="batch-table-wrap">
+      <table class="batch-table">
+        <thead><tr>${headers.map(h=>`<th>${h}</th>`).join('')}</tr></thead>
+        <tbody>${rows.map(row=>`<tr>${row.map((cell,i)=>
+          i===0
+            ? `<td>${escapeHtml(cell)}</td>`
+            : `<td style="max-width:300px;">${escapeHtml(cell.substring(0,120))}${cell.length>120?'...<br><span style="font-size:10px;color:var(--text-muted)">全文はCSVエクスポートで確認</span>':''}</td>`
+        ).join('')}</tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
+  document.getElementById('resultsBody').innerHTML = tableHtml;
+}
+
+function exportCSV() {
+  if (!allResults.length) return;
+  let csv = '';
+
+  if (currentMode === 'single') {
+    const platformNames = { rakuten:'楽天市場', amazon:'Amazon JP', general:'自社EC' };
+    csv = '商品名,プラットフォーム,文案\n';
+    allResults.forEach(r => {
+      csv += `"${r.name}","${platformNames[r.platform]}","${r.text.replace(/"/g,'""')}"\n`;
+    });
+  } else {
+    const platforms = Array.from(document.querySelectorAll('.batch-plt:checked')).map(c => c.value);
+    const platformNames = { rakuten:'楽天市場', amazon:'Amazon JP', general:'自社EC' };
+    csv = ['商品名', ...platforms.map(p => platformNames[p])].join(',') + '\n';
+    allResults.forEach(r => {
+      const row = [r.name, ...platforms.map(p => r.platforms[p] || '')];
+      csv += row.map(cell => `"${cell.replace(/"/g,'""')}"`).join(',') + '\n';
+    });
+  }
+
+  const bom = '\uFEFF'; // UTF-8 BOM for Excel
+  const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ec_copy_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ CSVファイルをダウンロードしました');
+}
+
+function copyText(btn, idx) {
+  const text = document.getElementById(`rt_${idx}`).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '✓ コピー済み';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'コピー'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function clearResults() {
+  allResults = [];
+  document.getElementById('resultsBody').innerHTML = '<div class="empty-state"><div class="empty-icon">✦</div><div class="empty-title">商品情報を入力して生成してください</div><div class="empty-sub">楽天・Amazon・Yahoo向けの最適な文案が自動生成されます</div></div>';
+  document.getElementById('exportBtn').style.display = 'none';
+}
+
+function toggleScript() {
+  const body = document.getElementById('scriptBody');
+  const chevron = document.getElementById('scriptChevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+function copyScript() {
+  const code = document.getElementById('scriptCode').textContent;
+  navigator.clipboard.writeText(code).then(() => {
+    showToast('✓ コードをコピーしました');
+  });
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.borderColor = isErr ? '#ff6b6b' : 'var(--green)';
+  t.style.color = isErr ? '#ff6b6b' : 'var(--green)';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+</script>
+</body>
+</html>
